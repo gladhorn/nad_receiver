@@ -15,7 +15,7 @@ import time
 import telnetlib
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('homeassistant.components.nad.media_player')
 DEFAULT_TIMEOUT = 1
 
 
