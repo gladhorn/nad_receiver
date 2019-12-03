@@ -13,7 +13,9 @@ import serial  # pylint: disable=import-error
 import threading
 import time
 import telnetlib
+import logging
 
+logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 1
 
 
@@ -84,9 +86,9 @@ class NADReceiver(object):
         Returns int
         """
         try:
-            res = int(round(
-                self.exec_command('main', 'volume', operator, value)))
-            return res
+            res = self.exec_command('main', 'volume', operator, value)
+            logger.debug(res)
+            return int(round(float(res)))
 
         except (ValueError, TypeError):
             pass
