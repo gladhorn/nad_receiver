@@ -13,17 +13,30 @@ import serial  # pylint: disable=import-error
 import threading
 import time
 import telnetlib
+import typing
+
+import logging
+logging.basicConfig()
+_LOGGER = logging.getLogger("nad_receiver")
+_LOGGER.setLevel(logging.DEBUG)
 
 DEFAULT_TIMEOUT = 1
 
+# There are two protocol versions.
+# Version 1 uses integers for some properties, for example sources,
+# while v2 moved to strings only.
+PROTOCOL_VERSION_AUTO = 0
+PROTOCOL_VERSION_1 = 1
+PROTOCOL_VERSION_2 = 2
 
 class NADReceiver(object):
     """NAD receiver."""
 
-    def __init__(self, serial_port):
+    def __init__(self, serial_port, protocol_version=PROTOCOL_VERSION_AUTO):
         """Create RS232 connection."""
-        self.ser = serial.Serial(serial_port, baudrate=115200)
+        self.ser = serial.Serial(serial_port, baudrate=115200, timeout=1.0, write_timeout=0.5)
         self.lock = threading.Lock()
+        self._protocol_version = protocol_version
 
     def exec_command(self, domain, function, operator, value=None):
         """
@@ -45,18 +58,22 @@ class NADReceiver(object):
 
         if not self.ser.is_open:
             self.ser.open()
+            _LOGGER.debug("serial open: %s", self.ser.is_open)
 
         try:
             self.lock.acquire()
 
             self.ser.write(''.join(['\r', cmd, '\r']).encode('utf-8'))
-            time.sleep(0.1)
-            # not sure why, but otherwise it is not ready yet to do the read.
 
-            msg = self.ser.read(self.ser.in_waiting)
+            _LOGGER.debug("write: %s", cmd)
+
+            # To get complete messages, always read until we get '\r'
+            # Messages will be of the form '\rMESSAGE\r' which pyserial handles nicely
+            msg = self.ser.read_until('\r')
+            _LOGGER.warning("reply: %s", msg)
 
             try:
-                msg = msg.decode()[1:-1]
+                msg = msg.strip().decode()
                 msg = msg.split('=')[1]
                 return msg
             except IndexError:
@@ -64,6 +81,13 @@ class NADReceiver(object):
 
         finally:
             self.lock.release()
+
+    def main_model(self):
+        """Get the model.
+
+        This property is not always supported, protocol version 2 presumably has it.
+        There is nothing to set, only "?" is supported."""
+        return self.exec_command('main', 'model', '?')
 
     def main_dimmer(self, operator, value=None):
         """Execute Main.Dimmer."""
@@ -105,23 +129,36 @@ class NADReceiver(object):
         """Execute Main.Sleep."""
         return self.exec_command('main', 'sleep', operator, value)
 
-    def main_source(self, operator, value=None):
+    def main_source(self, operator, value=None) -> typing.Union[int, str, None]:
         """
         Execute Main.Source.
 
         Returns int
         """
+        source = self.exec_command('main', 'source', operator, value)
         try:
-            source = int(self.exec_command('main', 'source', operator, value))
-            return source
-        except (ValueError, TypeError):
+            # Some models return '1' to '10'
+            return int(source)
+        except ValueError:
+            # Other models return 'AUX', 'CD' ...
+            return source.upper()
+        except TypeError:
             pass
-
         return None
 
     def main_version(self, operator, value=None):
         """Execute Main.Version."""
         return self.exec_command('main', 'version', operator, value)
+
+    def main_speaker_a(self, operator, value=None):
+        return self.exec_command('main', 'SpeakerA', operator, value)
+
+    def main_speaker_b(self, operator, value=None):
+        return self.exec_command('main', 'SpeakerB', operator, value)
+
+    def main_tape_monitor(self, operator, value=None):
+        return self.exec_command('main', 'tape1', operator, value)
+
 
     def tuner_am_frequency(self, operator, value=None):
         """Execute Tuner.AM.Frequence."""

@@ -38,10 +38,26 @@ CMDS = {
                 {'cmd': 'Main.Source',
                  'supported_operators': ['+', '-', '=', '?']
                  },
+            'SpeakerA':
+                {'cmd': 'Main.SpeakerA',
+                 'supported_operators': ['+', '-', '=', '?']
+                 },
+            'SpeakerB':
+                {'cmd': 'Main.SpeakerB',
+                 'supported_operators': ['+', '-', '=', '?']
+                 },
+            'tape1':
+                {'cmd': 'Main.Tape1',
+                 'supported_operators': ['+', '-', '=', '?']
+                 },
             'version':
                 {'cmd': 'Main.Version',
                  'supported_operators': ['?']
-                 }
+                 },
+            'model':
+                {'cmd': 'Main.Model',
+                 'supported_operators': ['?']
+                 },
         },
     'tuner':
         {
