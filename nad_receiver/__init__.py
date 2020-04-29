@@ -12,6 +12,14 @@ from nad_receiver.nad_commands import CMDS
 from nad_receiver.nad_transport import (SerialPortTransport, TelnetTransport,
                                         DEFAULT_TIMEOUT)
 
+import logging
+
+
+logging.basicConfig()
+_LOGGER = logging.getLogger("nad_receiver")
+# Uncomment this line to see all communication with the device:
+# _LOGGER.setLevel(logging.DEBUG)
+
 
 class NADReceiver:
     """NAD receiver."""
@@ -40,6 +48,7 @@ class NADReceiver:
 
         try:
             msg = self.transport.communicate(cmd)
+            _LOGGER.debug(f"sent: '{cmd}' reply: '{msg}'")
             return msg.split('=')[1]
         except IndexError:
             pass
