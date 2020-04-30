@@ -48,7 +48,10 @@ class NADReceiver:
 
         try:
             msg = self.transport.communicate(cmd)
-            _LOGGER.debug(f"sent: '{cmd}' reply: '{msg}'")
+            if not msg:
+                _LOGGER.warning(f"sent: '{cmd}' got no reply: '{msg}'")
+            else:
+                _LOGGER.debug(f"sent: '{cmd}' reply: '{msg}' transport: '{self.transport}'")
             return msg.split('=')[1]
         except IndexError:
             pass

@@ -33,6 +33,9 @@ class SerialPortTransport:
         )
         self.lock = threading.Lock()
 
+    def __repr__(self):
+        return f"SerialPortTransport<is_open:{self.ser.is_open}>"
+
     def _open_connection(self) -> None:
         if not self.ser.is_open:
             self.ser.open()
