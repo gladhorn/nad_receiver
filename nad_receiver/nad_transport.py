@@ -50,6 +50,8 @@ class SerialPortTransport:
             # Messages will be of the form '\rMESSAGE\r' which
             # pyserial handles nicely
             msg = self.ser.read_until("\r")
+            if not msg.strip():  # discard '\r' if it was sent
+                msg = self.ser.read_until("\r")
             assert isinstance(msg, bytes)
             return msg.strip().decode()
 
