@@ -32,8 +32,12 @@ class SerialPortTransport(NadTransport):
             write_timeout=DEFAULT_TIMEOUT,
         )
         self.lock = threading.Lock()
+        self.error_count = 0
 
     def _open_connection(self) -> None:
+        if self.error_count > 10:
+            self.ser.close()
+            self.error_count = 0
         if not self.ser.is_open:
             self.ser.open()
             _LOGGER.debug("serial open: %s", self.ser.is_open)
@@ -41,6 +45,9 @@ class SerialPortTransport(NadTransport):
     def communicate(self, command: str) -> str:
         with self.lock:
             self._open_connection()
+
+            # Empty the buffer, as recommended by the documentation
+            self.ser.read_all()
 
             self.ser.write(f"\r{command}\r".encode("utf-8"))
             # To get complete messages, always read until we get '\r'
@@ -50,7 +57,12 @@ class SerialPortTransport(NadTransport):
             if not msg.strip():  # discard '\r' if it was sent
                 msg = self.ser.read_until("\r")
             assert isinstance(msg, bytes)
-            return msg.strip().decode()
+            reply = msg.strip().decode()
+            if reply:
+                self.error_count = 0
+            else:
+                self.error_count += 1
+            return reply
 
 
 class TelnetTransport(NadTransport):
