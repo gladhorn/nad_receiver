@@ -80,8 +80,15 @@ class NADReceiver:
 
         if volume is None:
             return None
+
+        # The NAD C390DD (and perhaps other models) returns the literal string `dB` after the volume value.
+        # If present, we strip it so it can convert to float correctly.
+        normalized_volume = volume.strip()
+        if normalized_volume.lower().endswith("db"):
+            normalized_volume = normalized_volume[:-2].strip()
+
         try:
-            res = float(volume)
+            res = float(normalized_volume)
             return res
         except (ValueError):
             pass
