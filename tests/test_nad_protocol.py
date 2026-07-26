@@ -14,6 +14,26 @@ class Fake_NAD_C_356BE(nad_receiver.NADReceiver):
         self.transport = Fake_NAD_C_356BE_Transport()
 
 
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    [
+        ("-40", -40.0),
+        ("-40.5dB", -40.5),
+        ("-40.5 arbitrary suffix", -40.5),
+        ("NaN", None),
+        ("40", None)
+    ],
+)
+def test_main_volume_parses_leading_negative_decimal(
+    monkeypatch: pytest.MonkeyPatch, response: str, expected: float
+) -> None:
+    """Tests to check returned Main.Volume conversion."""
+    receiver = Fake_NAD_C_356BE()
+    monkeypatch.setattr(receiver, "exec_command", lambda *args: response)
+
+    assert receiver.main_volume("?") == expected
+
+
 def test_NAD_C_356BE() -> None:
     # This test can be run with the real amplifier, just instantiate
     # the real transport instead of the fake one

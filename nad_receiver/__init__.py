@@ -6,6 +6,7 @@ Functions can be found on the NAD website: http://nadelectronics.com/software
 """
 
 import codecs
+import re
 import socket
 from time import sleep
 from typing import Any, Dict, Iterable, Optional, Union
@@ -81,14 +82,14 @@ class NADReceiver:
         if volume is None:
             return None
 
-        # The NAD C390DD (and perhaps other models) returns the literal string `dB` after the volume value.
-        # If present, we strip it so it can convert to float correctly.
-        normalized_volume = volume.strip()
-        if normalized_volume.lower().endswith("db"):
-            normalized_volume = normalized_volume[:-2].strip()
+        # Some models append units (literally `dB`) or other text to the volume value.
+        # Instead, capture the decimal part of the value only so it can convert to float cleanly.
+        volume_match = re.match(r"-\d+(?:\.\d+)?", volume.strip())
+        if volume_match is None:
+            return None
 
         try:
-            res = float(normalized_volume)
+            res = float(volume_match.group())
             return res
         except (ValueError):
             pass
