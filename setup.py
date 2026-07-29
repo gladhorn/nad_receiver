@@ -8,5 +8,5 @@ setup(name='nad_receiver',
       author='joopert',
       license='MIT',
       packages=['nad_receiver'],
-      install_requires=['pyserial>=3.2.1', 'telnetlib3>=4.0.2'],
+      install_requires=['serialx[esphome]>=1.8.0', 'telnetlib3>=4.0.2'],
       zip_safe=True)

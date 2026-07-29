@@ -1,5 +1,5 @@
 import abc
-import serial  # type: ignore
+import serialx  # type: ignore
 from telnetlib3.telnetlib import Telnet  # type: ignore
 import threading
 
@@ -23,10 +23,10 @@ class NadTransport(abc.ABC):
 class SerialPortTransport(NadTransport):
     """Transport for NAD protocol over RS-232."""
 
-    def __init__(self, serial_port: str) -> None:
+    def __init__(self, url: str) -> None:
         """Create RS232 connection."""
-        self.ser = serial.Serial(
-            serial_port,
+        self.ser = serialx.serial_for_url(
+            url=url,
             baudrate=115200,
             timeout=DEFAULT_TIMEOUT,
             write_timeout=DEFAULT_TIMEOUT,
@@ -46,10 +46,10 @@ class SerialPortTransport(NadTransport):
             self.ser.write(f"\r{command}\r".encode("utf-8"))
             # To get complete messages, always read until we get '\r'
             # Messages will be of the form '\rMESSAGE\r' which
-            # pyserial handles nicely
-            msg = self.ser.read_until(serial.CR)
+            # serialx handles nicely
+            msg = self.ser.read_until(serialx.CR)
             if not msg.strip():  # discard '\r' if it was sent
-                msg = self.ser.read_until(serial.CR)
+                msg = self.ser.read_until(serialx.CR)
             assert isinstance(msg, bytes)
             return msg.strip().decode()
 

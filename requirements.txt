@@ -1,1 +1,1 @@
-pyserial==3.4.0
+serialx[esphome]==1.8.0
