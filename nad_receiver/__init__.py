@@ -9,7 +9,7 @@ import codecs
 import re
 import socket
 from time import sleep
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, Optional, Union, List
 from nad_receiver.nad_commands import CMDS
 from nad_receiver.nad_transport import (NadTransport, SerialPortTransport, TelnetTransportWrapper,
                                         DEFAULT_TIMEOUT)
@@ -52,6 +52,42 @@ class NADReceiver:
             msg = self.transport.communicate(cmd)
             _LOGGER.debug(f"sent: '{cmd}' reply: '{msg}'")
             return msg.split('=')[1]
+        except IndexError:
+            pass
+        return None
+
+    def exec_commands(self, commands: List)-> Optional[List[str]]:
+        """
+        Write a series of commands to the receiver and read the values
+        it returns.
+
+        The receiver will always return a value, also when setting a value.
+        """
+        cmds = []
+        for command in commands:
+            domain = command[0]
+            function = command[1]
+            operator = command[2]
+            value = command[3] if len(command) > 3 else None
+            if operator in CMDS[domain][function]['supported_operators']:
+                if operator == '=' and value is None:
+                    raise ValueError('No value provided')
+
+                cmd = ''.join([CMDS[domain][function]['cmd'], operator])  # type: ignore
+                assert isinstance(cmd, str)
+                if value:
+                    cmd = cmd + value
+            else:
+                raise ValueError('Invalid operator provided %s' % operator)
+
+            cmds.append(cmd)
+
+        try:
+            msgs = self.transport.communicate_multiline(cmds)
+            _LOGGER.debug(f"sent: '{cmds}' reply: '{msgs}'")
+            if msgs is None:
+                return None
+            return [msg.split('=')[1] for msg in msgs]
         except IndexError:
             pass
         return None
@@ -186,6 +222,39 @@ class NADReceiverTelnet(NADReceiver):
         """Create NADTelnet."""
         self.transport = TelnetTransportWrapper(host, port, timeout)
 
+    def status(self) -> Optional[Dict[str, Any]]:
+        """
+        Return the status of the device.
+
+        Returns a dictionary with keys 'volume' (int 0-200) , 'power' (bool),
+         'muted' (bool) and 'source' (str).
+        """
+        nad_reply = self.exec_commands([
+            [ "main", "power", "?"],
+            [ "main", "mute", "?"],
+            [ "main", "volume", "?"],
+        ])
+        if nad_reply is None:
+            return None
+
+        return {'power': nad_reply[0],
+                'muted': nad_reply[1],
+                'volume': nad_reply[2]}
+
+    def status_all(self) -> Optional[Dict[str, Any]]:
+        """
+        Return all status values of the device.
+
+        Returns a dictionary with keys like 'main_volume' for
+        each available status value.
+        """
+        nad_reply = self.transport.communicate_multiline("?")
+        _LOGGER.debug(f"sent: '?' reply: '{nad_reply}'")
+        if nad_reply is None:
+            return None
+
+        values = [x.split("=") for x in nad_reply]
+        return {x[0].lower().replace(".", "_"): x[1] for x in values}
 
 class NADReceiverTCP:
     """

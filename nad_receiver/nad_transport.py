@@ -3,7 +3,7 @@ import serial  # type: ignore
 from telnetlib3.telnetlib import Telnet  # type: ignore
 import threading
 
-from typing import Optional
+from typing import Optional, List
 
 import logging
 
@@ -17,6 +17,9 @@ DEFAULT_TIMEOUT = 1
 class NadTransport(abc.ABC):
     @abc.abstractmethod
     def communicate(self, command: str) -> str:
+        pass
+
+    def communicate_multiline(self, command: str) -> str:
         pass
 
 
@@ -119,6 +122,22 @@ class TelnetTransportWrapper(NadTransport):
 
         return rsp
 
+    def communicate_multiline(self, cmds: List[str]) -> List[str]:
+        rsp = ""
+        if not self._open_connection():
+            return rsp
+
+        try:
+            rsp = self.nad_telnet.communicate_multiline(cmds)
+        except EOFError as cc:
+            # Connection closed
+            _LOGGER.debug("Connection closed: %s", cc)
+            self.nad_telnet.close_connection()
+        except UnicodeError as ue:
+            # Some unicode error, but connection is open
+            _LOGGER.debug("Unicode error: %s", ue)
+
+        return rsp
 
 class TelnetTransport(NadTransport):
     """
@@ -176,3 +195,25 @@ class TelnetTransport(NadTransport):
         rsp = self.telnet.read_until(b"\r", self.timeout)
         _LOGGER.debug("Read response: '%s'", str(rsp))
         return rsp.strip().decode()
+
+    def communicate_multiline(self, cmds: List[str]) -> List[str]:
+        if not self.telnet:
+            raise Exception("Connection is closed")
+
+        _LOGGER.debug("Sending commands: '%s'", cmds)
+        cmd = b"".join([f"\n{cmd}\r".encode() for cmd in cmds])
+        self.telnet.write(cmd)
+
+        rsp_lines = []
+        while True:
+            # Notice NAD response to command ends with \r and starts with \n
+            # E.g. b'\nMain.Power=On\r'
+            rsp = self.telnet.read_until(b"\r", self.timeout)
+            _LOGGER.debug("Read response: '%s'", str(rsp))
+            rsp = rsp.strip().decode()
+            if len(rsp) > 1:
+                rsp_lines.append(rsp)
+            else:
+                break
+
+        return rsp_lines
